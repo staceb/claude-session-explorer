@@ -107,7 +107,7 @@ def build(model=summarise.MODEL):
     for n in nodes:
         label = {"session": "conversation", "memory": f"memory note ({n.get('mtype') or 'note'})", "job": "automated job"}[n["kind"]]
         lines.append(f"{n['id']} | {label} | {(n['date'] or '')[:10]} | {n['project']} | {n['title']}: {short(n['gist'], 420)}")
-    data = summarise.ask_claude(SYSTEM, "\n".join(lines), model, timeout=900)
+    data = summarise.ask_claude(SYSTEM, "\n".join(lines), model, timeout=900, kind="map", label="Mind map")
 
     ids = {n["id"] for n in nodes}
     seen = set()

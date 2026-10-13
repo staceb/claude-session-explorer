@@ -1,4 +1,4 @@
-"""Session Explorer: a local viewer for your Claude Code sessions.
+"""Second Brain (Session Explorer): a local dashboard for your Claude Code sessions.
 
   python3 server.py          # indexes new sessions, then opens http://127.0.0.1:8765
 """
@@ -14,12 +14,17 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+import dashboard
 import index
+import manage
 import map as mindmap
 import summarise
 
 PORT = int(os.environ.get("PORT", 8765))
 STATIC = os.path.join(index.HERE, "static")
+TYPES = {".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".html": "text/html; charset=utf-8",
+         ".svg": "image/svg+xml", ".png": "image/png"}
+ALLOWED_HOSTS = {f"127.0.0.1:{PORT}", f"localhost:{PORT}"}
 lock = threading.Lock()
 jobs = {}  # session id -> "running" | "done" | error text
 
@@ -40,6 +45,12 @@ def session_rows(kind):
     return [dict(r) | {"summary": json.loads(r["summary"]) if r["summary"] else None} for r in rows]
 
 
+def sessions_payload(kind):
+    if kind == "running":
+        return dashboard.running(db())
+    return session_rows(kind)
+
+
 def session_detail(sid):
     con = db()
     s = con.execute("select * from sessions where id=?", (sid,)).fetchone()
@@ -49,12 +60,14 @@ def session_detail(sid):
     msgs = [dict(r) for r in con.execute(
         "select seq, ts, role, tool_name, text, detail from messages where session_id=? order by seq", (sid,))]
     subs = [dict(r) for r in con.execute(
-        "select id, agent_label, n_tools, started from sessions where parent_id=? order by started", (sid,))]
+        f"select id, agent_label, agent_type, n_tools, started, {dashboard.TOK} as tokens from sessions where parent_id=? order by started", (sid,))]
     return dict(s) | {
         "summary": json.loads(x["data"]) if x else None,
         "summary_model": x["model"] if x else None,
         "summary_stale": bool(x and x["source_ended"] != s["ended"]),
         "messages": msgs, "subagents": subs, "job_status": jobs.get(sid),
+        "tokens": dashboard.tokens(s), "agent_tokens": sum(x["tokens"] or 0 for x in subs),
+        "turns": dashboard.turns(con, sid),
     }
 
 
@@ -153,17 +166,55 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def trusted(self, write=False):
+        """Only this app may talk to the server: blocks DNS rebinding (Host) and other sites' requests (Origin)."""
+        if self.headers.get("Host") not in ALLOWED_HOSTS:
+            return False
+        origin = self.headers.get("Origin")
+        if origin and origin.split("//", 1)[-1] not in ALLOWED_HOSTS:
+            return False
+        if write and not (self.headers.get("Content-Type") or "").startswith("application/json"):
+            return False
+        return True
+
+    def body(self):
+        n = int(self.headers.get("Content-Length") or 0)
+        try:
+            return json.loads(self.rfile.read(n) or b"{}") if n else {}
+        except ValueError:
+            return {}
+
     def do_GET(self):
+        if not self.trusted():
+            return self.send({"error": "forbidden"}, 403)
         u = urlparse(self.path)
         q = {k: v[0] for k, v in parse_qs(u.query).items()}
         p = u.path
         if p in ("/", "/index.html"):
             return self.send(open(os.path.join(STATIC, "index.html"), "rb").read(), ctype="text/html; charset=utf-8")
+        if p.startswith("/static/"):
+            name = os.path.basename(p)
+            path = os.path.join(STATIC, name)
+            if os.path.splitext(name)[1] in TYPES and os.path.isfile(path):
+                return self.send(open(path, "rb").read(), ctype=TYPES[os.path.splitext(name)[1]])
+            return self.send({"error": "not found"}, 404)
         if p == "/api/stats":
             refresh()
             return self.send(stats())
         if p == "/api/sessions":
-            return self.send(session_rows(q.get("kind", "real")))
+            return self.send(sessions_payload(q.get("kind", "real")))
+        if p == "/api/overview":
+            refresh()
+            return self.send(dashboard.overview(db()))
+        if p == "/api/running":
+            return self.send(dashboard.running(db()))
+        if p == "/api/turns":
+            return self.send(dashboard.heaviest_turns(db(), q.get("kind", "real")))
+        if p == "/api/agents":
+            refresh()
+            return self.send(dashboard.agents(db()))
+        if p == "/api/installed":
+            return self.send(dashboard.installed(db()))
         if p.startswith("/api/session/"):
             d = session_detail(p.rsplit("/", 1)[1])
             return self.send(d) if d else self.send({"error": "not found"}, 404)
@@ -178,7 +229,22 @@ class Handler(BaseHTTPRequestHandler):
         self.send({"error": "not found"}, 404)
 
     def do_POST(self):
+        if not self.trusted(write=True):
+            return self.send({"error": "forbidden"}, 403)
         p = urlparse(self.path).path
+        if p == "/api/manage":
+            b = self.body()
+            try:
+                if b.get("action") == "archive":
+                    r = manage.archive(b.get("kind"), path=b.get("path"), name=b.get("name"),
+                                       mcp_scope=b.get("scope") or "user", project=b.get("project"))
+                elif b.get("action") == "restore":
+                    r = manage.restore(b.get("id"))
+                else:
+                    return self.send({"error": "unknown action"}, 400)
+                return self.send({"ok": True, "item": r})
+            except Exception as e:
+                return self.send({"error": str(e)}, 400)
         if p == "/api/update":
             if update["stage"] not in ("indexing", "summarising", "map"):
                 update["stage"] = "indexing"
@@ -201,7 +267,7 @@ if __name__ == "__main__":
     index.run()
     url = f"http://127.0.0.1:{PORT}"
     srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-    print(f"Session Explorer running at {url}  (Ctrl+C to stop)")
+    print(f"Second Brain running at {url}  (Ctrl+C to stop)")
     if "--no-open" not in sys.argv:
         webbrowser.open(url)
     try:

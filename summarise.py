@@ -32,8 +32,9 @@ Return ONLY a JSON object, no code fences, with exactly these keys:
 Each list may be empty. Never include API keys, passwords or other secrets."""
 
 
-def ask_claude(system, text, model=MODEL, timeout=600):
-    """One tool-less `claude -p` call that must answer with a JSON object. Leaves no transcript behind."""
+def ask_claude(system, text, model=MODEL, timeout=600, kind="summary", ref=None, label=None):
+    """One tool-less `claude -p` call that must answer with a JSON object. Leaves no transcript behind,
+    so its token usage is recorded in bg_calls instead."""
     os.makedirs(index.SUMMARY_CWD, exist_ok=True)
     claude = shutil.which("claude")
     if not claude:
@@ -47,7 +48,15 @@ def ask_claude(system, text, model=MODEL, timeout=600):
     )
     if proc.returncode != 0:
         raise RuntimeError((proc.stderr or proc.stdout).strip()[:500])
-    result = json.loads(proc.stdout).get("result", "").strip()
+    out = json.loads(proc.stdout)
+    u = out.get("usage") or {}
+    db = index.connect()
+    db.execute("insert into bg_calls values(?,?,?,?,?,?,?,?,?)",
+               (kind, ref, label, datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z", model,
+                u.get("input_tokens") or 0, u.get("cache_creation_input_tokens") or 0,
+                u.get("cache_read_input_tokens") or 0, u.get("output_tokens") or 0))
+    db.commit()
+    result = out.get("result", "").strip()
     return json.loads(result[result.find("{"): result.rfind("}") + 1])
 
 
@@ -84,7 +93,7 @@ def summarise(db, sid, model=MODEL):
         return None
     header = (f"Session title: {s['title'] or '(untitled)'}\nProject folder: {s['project']}\n"
               f"Dates: {(s['started'] or '')[:16]} to {(s['ended'] or '')[:16]} (UTC)\n\nTRANSCRIPT\n")
-    data = ask_claude(SYSTEM, header + body, model)
+    data = ask_claude(SYSTEM, header + body, model, kind="summary", ref=sid, label=s["title"])
     for k, v in data.items():
         if isinstance(v, str):
             data[k] = index.mask(v)

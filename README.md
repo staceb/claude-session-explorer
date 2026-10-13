@@ -1,19 +1,28 @@
-# Session Explorer
+# Second Brain (claude-session-explorer)
 
-**A private, local map of everything you've done with Claude Code.**
+**A private, local dashboard for everything you've done with Claude Code: what you worked on, what ran,
+what's installed, and how many tokens it all used.**
 
-Claude Code keeps a full transcript of every session in `~/.claude/projects/`, but there's no good way to look
-back through them. Session Explorer reads those transcripts and gives you:
+Claude Code keeps a transcript of every session in `~/.claude/projects/`. Second Brain reads them, plus
+Claude Code's own config, and gives you:
 
-- **Map**: your conversations, Claude's memory notes and your automated jobs, grouped into themes
-  (*active*, *simmering*, *parked*) and linked by similarity. It also shows the connections Claude noticed
-  between themes, each with a reason.
-- **Conversations**: every session you started yourself, each with a summary card (what it was about,
-  decisions, things learned about you, open threads, what was made) above the full, readable transcript.
-- **Automated**: `claude -p` runs from scripts and pipelines, grouped by job, kept separate from your real
-  conversations.
-- **Memory**: the memory files Claude Code keeps, each linked to the session that wrote it.
-- **Search**: full-text search across everything you and Claude said, jumping straight to the message.
+- **Overview**: tokens this month, sessions open right now, agent runs, what loads before you type,
+  tokens per week, and your heaviest sessions.
+- **Map**: your conversations, memory notes and automated jobs, grouped into themes (*active*, *simmering*,
+  *parked*) and linked by similarity, plus connections Claude noticed between themes.
+- **Sessions**: conversations and automated runs past and present, the sessions **open right now**
+  (with memory use and whether they're working), and your **heaviest requests** ranked by tokens. Each
+  session has a summary card, its token breakdown, and the full readable transcript.
+- **Agents**: every agent that has run, which session launched it, how many tokens it used, and
+  **who decided to launch it** (you, Claude on its own, another agent, or a script). Includes the agents
+  you've defined and which are running now.
+- **Installed**: skills, connectors and MCP servers, plugins, scheduled jobs, memory and instructions,
+  each with its token load and how often it's been used. You can **archive** any of them and
+  **restore** it later.
+- **Memory**: everything Claude remembers, each note linked to the session that wrote it.
+- **Search** across everything you and Claude said.
+
+Token counts only, no prices: what matters is what you use, not a bill.
 
 ## Private by design
 
@@ -25,6 +34,11 @@ back through them. Session Explorer reads those transcripts and gives you:
 - Those summary runs are not saved as new transcripts (`--no-session-persistence`) and have no tools.
 - Anything that looks like an API key or token is masked in the viewer and in summaries.
 - Your data (`sessions.db`, `map.json`) stays in the app folder and is git-ignored.
+- The server refuses requests from other websites (it checks Host and Origin), so a page you visit
+  can't read your transcripts or trigger an action.
+- **Archive never deletes.** Items move to `~/claude-archive/` with a manifest, and Restore puts each one
+  back exactly where it was. MCP servers are saved, then removed with `claude mcp remove`, and
+  restored with `claude mcp add-json`.
 
 ## Requirements
 
@@ -87,8 +101,10 @@ to `~/.claude/settings.json`:
 | `index.py` | Reads `~/.claude/projects/**/*.jsonl` into `sessions.db` (SQLite, with full-text search). Incremental: only changed files are re-read. |
 | `summarise.py` | Condenses a session (your words in full, Claude's shortened, tools as one-liners) and asks Claude for a JSON summary. |
 | `map.py` | Collects conversations, memory notes and automated jobs. One Claude call groups them into themes and finds connections; a local TF-IDF score adds similarity links. Writes `map.json`. |
+| `dashboard.py` | Overview, usage over time, open sessions (via `~/.claude/sessions/<pid>.json`), agents and who launched them, everything installed. |
+| `manage.py` | Archive and restore. |
 | `server.py` | Small local web server and JSON API. |
-| `static/index.html` | The whole interface: plain HTML/CSS/JS with no dependencies, light and dark mode. |
+| `static/` | The interface: plain HTML, CSS and JS with no dependencies and no external requests. |
 
 **Conversations vs automated:** each transcript records how it was started. Sessions launched from the terminal
 (`entrypoint: cli`) are conversations; `claude -p` and SDK runs (`sdk-cli`) are automated, grouped by the opening

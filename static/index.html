@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Second Brain</title>
 <link rel="stylesheet" href="/static/style.css">
-<script>try { document.documentElement.dataset.ground = new URLSearchParams(location.search).get("ground") || localStorage.getItem("ground") || "ink"; } catch (e) {}</script>
+<script>try { const g = new URLSearchParams(location.search).get("ground") || localStorage.getItem("ground") || "ink";
+  document.documentElement.dataset.ground = g;
+  if (["sun", "tangerine", "bubblegum", "lime"].includes(g)) document.documentElement.dataset.bright = ""; } catch (e) {}</script>
 </head>
 <body>
 <div class="app">
@@ -25,7 +27,11 @@
         <button data-ground="ink" style="background:#1c1c1f" aria-label="Charcoal"></button>
         <button data-ground="navy" style="background:#1a2242" aria-label="Navy"></button>
         <button data-ground="plum" style="background:#2a1c31" aria-label="Plum"></button>
-        <button data-ground="paper" style="background:#ece6d8" aria-label="Paper"></button></div>
+        <button data-ground="paper" style="background:#ece6d8" aria-label="Paper"></button>
+        <button data-ground="sun" style="background:#ffd43b" aria-label="Sun"></button>
+        <button data-ground="tangerine" style="background:#ff9b50" aria-label="Tangerine"></button>
+        <button data-ground="bubblegum" style="background:#f7a8d0" aria-label="Bubblegum"></button>
+        <button data-ground="lime" style="background:#9be78f" aria-label="Lime"></button></div>
     </div>
   </nav>
   <main>

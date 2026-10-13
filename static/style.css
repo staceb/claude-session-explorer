@@ -189,6 +189,23 @@ mark { background: var(--yellow); border-radius: 3px; padding: 0 1px; }
 [data-ground="paper"] { --ground: #ece6d8; --ground-2: #ded6c3; --ground-3: #d0c7b1; --on-ground: #1c1c1f; --on-ground-2: #6d685e; --brand: #1c1c1f; --dark-tile: #1c1c1f; }
 [data-ground="paper"] .tab.on { background: var(--ink); color: var(--paper); }
 [data-ground="paper"] .t-paper, [data-ground="paper"] .tile:not([class*="t-"]) { background: #fffdf7; }
-.grounds { display: flex; gap: 6px; margin-top: 12px; align-items: center; }
+.grounds { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; align-items: center; }
 .grounds button { width: 20px; height: 20px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
 .grounds button.on { border-color: var(--on-ground); }
+
+/* bright grounds: tiles get ink outlines and a hard shadow so blocks stay separate on a bright page */
+[data-ground="sun"] { --ground: #ffd43b; } [data-ground="tangerine"] { --ground: #ff9b50; }
+[data-ground="bubblegum"] { --ground: #f7a8d0; } [data-ground="lime"] { --ground: #9be78f; }
+[data-bright] { --ground-2: rgba(23,23,26,.08); --ground-3: rgba(23,23,26,.16); --on-ground: #17171a; --on-ground-2: #3d3b36; --brand: #17171a; --dark-tile: #17171a; }
+[data-bright] .tile { border: 2.5px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); }
+[data-bright] .grid { gap: 16px; }
+[data-bright] .tile.link:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--ink); }
+[data-bright] .tab.on { background: var(--ink); color: var(--paper); }
+[data-bright] .topbar input { background: var(--paper); color: var(--ink); border: 2.5px solid var(--ink); }
+[data-bright] .topbar input::placeholder { color: var(--ink-3); }
+[data-bright] .navfoot .btn.yellow { border: 2.5px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+[data-bright] .grounds button { border-color: rgba(23,23,26,.25); }
+[data-bright] .grounds button.on { border-color: var(--ink); }
+/* a tile the same colour as the page turns white */
+[data-ground="sun"] .t-yellow, [data-ground="tangerine"] .t-orange, [data-ground="bubblegum"] .t-pink, [data-ground="lime"] .t-mint { background: var(--paper); }
+[data-ground="sun"] .navfoot .btn.yellow { background: var(--paper); }

@@ -655,6 +655,8 @@ async function loadCounts() {
 // ── background picker ─────────────────────────────────────────────────────────
 function setGround(g) {
   document.documentElement.dataset.ground = g;
+  if (["sun", "tangerine", "bubblegum", "lime"].includes(g)) document.documentElement.dataset.bright = "";
+  else delete document.documentElement.dataset.bright;
   try { localStorage.setItem("ground", g); } catch (e) {}
   $$(".grounds button").forEach(b => b.classList.toggle("on", b.dataset.ground === g));
 }

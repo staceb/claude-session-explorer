@@ -39,7 +39,9 @@ def ask_claude(system, text, model=MODEL, timeout=600):
     if not claude:
         raise RuntimeError("Claude Code isn't installed or isn't on your PATH: summaries need the `claude` command.")
     proc = subprocess.run(
-        [claude, "-p", "--model", model, "--no-session-persistence", "--tools", "",
+        # --strict-mcp-config: with tools off, Claude Code would otherwise load every MCP connector's
+        # full description (~50k tokens per call); this keeps the overhead to a few hundred
+        [claude, "-p", "--model", model, "--no-session-persistence", "--tools", "", "--strict-mcp-config",
          "--system-prompt", system, "--output-format", "json"],
         input=text, capture_output=True, text=True, cwd=index.SUMMARY_CWD, timeout=timeout,
     )

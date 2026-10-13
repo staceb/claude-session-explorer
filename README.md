@@ -3,6 +3,13 @@
 **A private, local dashboard for everything you've done with Claude Code: what you worked on, what ran,
 what's installed, and how many tokens it all used.**
 
+<p align="center"><img src="docs/demo.gif" alt="Second Brain: hovering the mind map, opening a conversation and a theme" width="100%"></p>
+<p align="center"><a href="docs/demo.mp4">▶ Watch the video (MP4)</a></p>
+
+| Overview, charcoal | Overview, bright |
+| --- | --- |
+| ![Overview dashboard on the charcoal background](docs/overview-ink.png) | ![Overview dashboard on the bright yellow background](docs/overview-sun.png) |
+
 Claude Code keeps a transcript of every session in `~/.claude/projects/`. Second Brain reads them, plus
 Claude Code's own config, and gives you:
 

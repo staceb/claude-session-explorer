@@ -35,8 +35,8 @@ back through them. Session Explorer reads those transcripts and gives you:
 ## Install and run
 
 ```bash
-git clone https://github.com/<you>/session-explorer.git
-cd session-explorer
+git clone https://github.com/staceb/claude-session-explorer.git
+cd claude-session-explorer
 python3 server.py
 ```
 

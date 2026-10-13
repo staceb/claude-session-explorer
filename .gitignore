@@ -1,0 +1,9 @@
+# your data: never commit
+sessions.db
+sessions.db-*
+map.json
+.summarise/
+
+__pycache__/
+*.pyc
+.DS_Store

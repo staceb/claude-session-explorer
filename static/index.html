@@ -1,0 +1,841 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Session Explorer</title>
+<style>
+:root {
+  --bg: #f6f1e7; --panel: #fbf8f2; --card: #ffffff; --ink: #2a2620; --ink-2: #5d564b; --ink-3: #8f877a;
+  --line: #e6ddcc; --gold: #b08a55; --gold-ink: #7d5e30; --gold-wash: #f1e6d2; --you: #f4ead8;
+  --code: #f3eee4; --mark: #f5dca4; --danger: #a4493d;
+  --serif: "New York", ui-serif, "Iowan Old Style", Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1a17; --panel: #211f1b; --card: #2a2722; --ink: #ede6da; --ink-2: #bfb6a7; --ink-3: #8a8274;
+    --line: #3a362f; --gold: #c9a87c; --gold-ink: #d9bc92; --gold-wash: #3a3226; --you: #332c22;
+    --code: #24221e; --mark: #6b5326; --danger: #e08a7d; color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.55 var(--sans); }
+button { font: inherit; color: inherit; }
+a { color: var(--gold-ink); }
+.app { display: grid; grid-template-columns: 210px 380px 1fr; height: 100vh; }
+
+/* nav */
+nav { border-right: 1px solid var(--line); padding: 22px 14px; display: flex; flex-direction: column; gap: 4px; }
+.brand { font-family: var(--serif); font-size: 20px; line-height: 1.15; padding: 0 10px 18px; letter-spacing: -0.01em; }
+.brand small { display: block; font: 12px var(--sans); color: var(--ink-3); margin-top: 4px; letter-spacing: 0; }
+.tab { display: flex; justify-content: space-between; align-items: baseline; width: 100%; text-align: left; background: none;
+  border: 0; padding: 8px 10px; border-radius: 8px; cursor: pointer; color: var(--ink-2); }
+.tab:hover { background: var(--gold-wash); }
+.tab.on { background: var(--gold-wash); color: var(--ink); font-weight: 600; }
+.tab .n { font-size: 12px; color: var(--ink-3); font-weight: 400; font-variant-numeric: tabular-nums; }
+.navnote { margin-top: auto; padding: 10px; font-size: 12px; color: var(--ink-3); }
+
+/* list column */
+.list { border-right: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+.searchbar { padding: 16px; border-bottom: 1px solid var(--line); }
+.searchbar input { width: 100%; padding: 9px 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--card);
+  color: var(--ink); font: inherit; outline: none; }
+.searchbar input:focus { border-color: var(--gold); }
+.scroll { overflow-y: auto; flex: 1; padding: 6px 10px 30px; }
+.group { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); padding: 16px 8px 6px; }
+.item { display: block; width: 100%; text-align: left; background: none; border: 0; border-radius: 10px; padding: 10px 10px;
+  cursor: pointer; border: 1px solid transparent; }
+.item:hover { background: var(--card); }
+.item.on { background: var(--card); border-color: var(--line); box-shadow: 0 1px 2px rgba(60,40,10,.05); }
+.item .t { font-weight: 600; line-height: 1.3; }
+.item .m { font-size: 12px; color: var(--ink-3); margin-top: 3px; }
+.item .s { font-size: 13px; color: var(--ink-2); margin-top: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.chip { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 99px; background: var(--gold-wash); color: var(--gold-ink); margin-right: 4px; }
+.job { border: 1px solid var(--line); background: var(--card); border-radius: 10px; margin: 8px 0; overflow: hidden; }
+.job > button { width: 100%; text-align: left; background: none; border: 0; padding: 11px 12px; cursor: pointer; }
+.job .t { font-weight: 600; line-height: 1.35; }
+.job .m { font-size: 12px; color: var(--ink-3); margin-top: 3px; }
+.job .runs { border-top: 1px solid var(--line); padding: 4px; }
+.job .runs .item { padding: 7px 9px; }
+mark { background: var(--mark); color: inherit; border-radius: 3px; padding: 0 1px; }
+.empty { color: var(--ink-3); padding: 30px 12px; text-align: center; }
+
+/* detail */
+main { overflow-y: auto; min-height: 0; }
+.detail { max-width: 860px; margin: 0 auto; padding: 34px 40px 80px; }
+.crumb { font-size: 12px; color: var(--ink-3); margin-bottom: 10px; }
+.crumb button { background: none; border: 0; padding: 0; color: var(--gold-ink); cursor: pointer; }
+h1 { font-family: var(--serif); font-weight: 600; font-size: 28px; line-height: 1.2; margin: 0 0 8px; letter-spacing: -0.01em; }
+.meta { color: var(--ink-3); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin: 22px 0; }
+.card h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--gold-ink); margin: 16px 0 6px; }
+.card h3:first-child { margin-top: 0; }
+.card p { margin: 0; }
+.card ul { margin: 0; padding-left: 18px; }
+.card li { margin: 3px 0; }
+.lede { font-family: var(--serif); font-size: 16.5px; line-height: 1.55; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
+.btn { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+.btn:hover { border-color: var(--gold); }
+.btn.primary { background: var(--gold); border-color: var(--gold); color: #fff; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.muted { color: var(--ink-3); font-size: 13px; }
+.toolbar { display: flex; justify-content: space-between; align-items: center; margin: 28px 0 10px; }
+.toolbar h2 { font-family: var(--serif); font-size: 19px; margin: 0; font-weight: 600; }
+label.toggle { font-size: 13px; color: var(--ink-2); display: flex; gap: 6px; align-items: center; cursor: pointer; }
+
+/* transcript */
+.msg { margin: 14px 0; scroll-margin-top: 30px; }
+.msg .who { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); margin-bottom: 3px; }
+.msg.user .body { background: var(--you); border-radius: 12px; padding: 10px 14px; white-space: pre-wrap; word-wrap: break-word; }
+.msg.flash .body { outline: 2px solid var(--gold); }
+.msg.assistant .body > :first-child { margin-top: 0; }
+.msg.assistant .body > :last-child { margin-bottom: 0; }
+.cmd { font-family: var(--mono); font-size: 12px; color: var(--ink-3); margin: 10px 0; }
+.steps { margin: 8px 0; }
+.steps > button { background: none; border: 0; padding: 3px 0; cursor: pointer; color: var(--ink-3); font-size: 13px; }
+.steps > button:hover { color: var(--gold-ink); }
+.step { border-left: 2px solid var(--line); margin-left: 4px; padding: 2px 0 2px 12px; }
+.step > button { background: none; border: 0; padding: 2px 0; cursor: pointer; text-align: left; font-size: 13px; color: var(--ink-2); width: 100%; }
+.step b { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--gold-ink); margin-right: 6px; }
+pre { background: var(--code); border-radius: 8px; padding: 10px 12px; overflow-x: auto; font: 12px/1.5 var(--mono); white-space: pre-wrap; word-break: break-word; max-height: 480px; overflow-y: auto; }
+code { font: 12.5px var(--mono); background: var(--code); padding: 1px 4px; border-radius: 4px; }
+pre code { background: none; padding: 0; }
+.md table { border-collapse: collapse; margin: 10px 0; font-size: 13px; display: block; overflow-x: auto; }
+.md th, .md td { border: 1px solid var(--line); padding: 5px 9px; text-align: left; vertical-align: top; }
+.md th { background: var(--gold-wash); }
+.md h1, .md h2, .md h3, .md h4 { font-family: var(--serif); font-size: 16px; margin: 16px 0 6px; }
+.md blockquote { border-left: 3px solid var(--gold); margin: 8px 0; padding: 2px 12px; color: var(--ink-2); }
+.md p { margin: 8px 0; }
+.md ul, .md ol { margin: 6px 0; padding-left: 22px; }
+.subs { margin-top: 10px; }
+.subs button { display: block; background: none; border: 0; padding: 3px 0; cursor: pointer; color: var(--gold-ink); text-align: left; }
+.mem { margin-bottom: 18px; }
+.mem .type { float: right; }
+.mem .desc { color: var(--ink-2); margin: 2px 0 10px; }
+.mem .src { font-size: 12px; color: var(--ink-3); margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.mem .src button { background: none; border: 0; padding: 0; color: var(--gold-ink); cursor: pointer; font-size: 12px; }
+.spin { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--line); border-top-color: var(--gold); border-radius: 50%; animation: s 0.8s linear infinite; vertical-align: -2px; }
+@keyframes s { to { transform: rotate(360deg); } }
+.welcome { padding: 80px 40px; color: var(--ink-3); text-align: center; font-family: var(--serif); font-size: 18px; }
+
+/* map */
+body.mapmode .app { grid-template-columns: 210px 1fr; }
+body.mapmode .list { display: none; }
+body.mapmode main { overflow: hidden; position: relative; }
+.mapwrap { position: absolute; inset: 0; }
+#mapsvg { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+#mapsvg.drag { cursor: grabbing; }
+.maphead { position: absolute; top: 18px; left: 22px; right: 22px; pointer-events: none; display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; }
+.maphead .centre { font-family: var(--serif); font-size: 17px; line-height: 1.45; max-width: 620px; background: color-mix(in srgb, var(--bg) 82%, transparent); padding: 6px 10px; border-radius: 10px; }
+.maphead .controls { pointer-events: auto; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; font-size: 12.5px; color: var(--ink-2); background: color-mix(in srgb, var(--bg) 85%, transparent); padding: 8px 10px; border-radius: 10px; }
+.maphead .controls label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.legend { position: absolute; left: 22px; bottom: 16px; font-size: 12px; color: var(--ink-3); display: flex; gap: 14px; flex-wrap: wrap; background: color-mix(in srgb, var(--bg) 85%, transparent); padding: 5px 10px; border-radius: 8px; }
+.legend svg { vertical-align: -2px; margin-right: 4px; }
+.mapnode { cursor: pointer; transition: opacity .2s; }
+.mapnode text { font: 11.5px var(--sans); fill: var(--ink-2); pointer-events: none; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
+.mapnode:hover text { fill: var(--ink); }
+.themelabel { font-family: var(--serif); font-weight: 600; cursor: pointer; paint-order: stroke; stroke: var(--bg); stroke-width: 5px; stroke-linejoin: round; }
+.themelabel .st { font: 11px var(--sans); font-weight: 400; letter-spacing: .06em; }
+.dim { opacity: .12; }
+.mappanel { position: absolute; top: 14px; right: 14px; bottom: 14px; width: 360px; max-width: calc(100% - 28px); background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; overflow-y: auto; box-shadow: 0 8px 30px rgba(40,25,5,.12); }
+.mappanel h2 { font-family: var(--serif); font-size: 20px; line-height: 1.25; margin: 6px 0 6px; }
+.mappanel h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--gold-ink); margin: 18px 0 6px; }
+.mappanel .x { float: right; background: none; border: 0; font-size: 18px; cursor: pointer; color: var(--ink-3); }
+.mappanel .lk { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 5px 0; cursor: pointer; border-bottom: 1px solid var(--line); }
+.mappanel .lk:last-child { border-bottom: 0; }
+.mappanel .lk .why { display: block; font-size: 12.5px; color: var(--ink-3); }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+.tip { position: absolute; pointer-events: none; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; font-size: 12.5px; max-width: 280px; box-shadow: 0 4px 14px rgba(40,25,5,.12); }
+
+@media (max-width: 1000px) {
+  .app { grid-template-columns: 1fr; height: auto; }
+  nav { flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--line); padding: 12px 16px; }
+  .brand { width: 100%; padding-bottom: 6px; }
+  .tab { width: auto; gap: 8px; }
+  .navnote { width: 100%; margin-top: 8px; padding: 0; }
+  .list { border-right: 0; max-height: 60vh; }
+  .detail { padding: 24px 16px 60px; }
+  .cols { grid-template-columns: 1fr; }
+  body.mapmode .app { grid-template-columns: 1fr; }
+  body.mapmode main { height: 78vh; }
+  .maphead { flex-direction: column; }
+  .mappanel { top: auto; height: 55%; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav>
+    <div class="brand">Session Explorer<small>Your Claude Code history</small></div>
+    <button class="tab" data-view="map">Map <span class="n" id="n-map"></span></button>
+    <button class="tab" data-view="real">Conversations <span class="n" id="n-real"></span></button>
+    <button class="tab" data-view="auto">Automated <span class="n" id="n-auto"></span></button>
+    <button class="tab" data-view="memory">Memory <span class="n" id="n-memory"></span></button>
+    <div class="navnote"><button class="btn" id="update" style="width:100%">↻ Update</button>
+      <div id="updstatus" style="margin-top:8px"></div><div id="navnote" style="margin-top:6px"></div></div>
+  </nav>
+  <section class="list">
+    <div class="searchbar"><input id="q" type="search" placeholder="Search everything you and Claude said…" autocomplete="off"></div>
+    <div class="scroll" id="list"></div>
+  </section>
+  <main id="main"><div class="welcome">Pick a session to open it.</div></main>
+</div>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => (s ?? "").toString().replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const api = (p, opt) => fetch(p, opt).then(r => r.json());
+const state = { view: "real", lists: {}, open: null, showTools: false, query: "" };
+try { state.showTools = localStorage.getItem("showTools") === "1"; } catch (e) {}
+
+// ── formatting ────────────────────────────────────────────────────────────────
+const fmtDay = iso => iso ? new Date(iso).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }) : "";
+const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "";
+const fmtShort = iso => iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "";
+function duration(a, b) {
+  const m = Math.round((new Date(b) - new Date(a)) / 60000);
+  if (!(m >= 0)) return "";
+  if (m < 60) return `${m} min`;
+  if (m < 60 * 24) return `${Math.floor(m / 60)} h ${m % 60} min`;
+  return `active ${fmtShort(a)} – ${fmtShort(b)}`;
+}
+const plural = (n, w) => `${n.toLocaleString()} ${n === 1 ? w : w.endsWith("y") ? w.slice(0, -1) + "ies" : w + "s"}`;
+const titleOf = s => s.title || (s.first_prompt || "Untitled").split("\n")[0].slice(0, 90);
+
+function inline(s) {
+  return s
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,;:!?]|$)/g, "$1<em>$2</em>")
+    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+}
+function md(src) {
+  const lines = esc(src).split("\n"), out = [];
+  let i = 0;
+  while (i < lines.length) {
+    const l = lines[i];
+    if (/^```/.test(l)) {
+      const buf = []; i++;
+      while (i < lines.length && !/^```/.test(lines[i])) buf.push(lines[i++]);
+      i++; out.push(`<pre><code>${buf.join("\n")}</code></pre>`); continue;
+    }
+    if (/^\s*\|.*\|\s*$/.test(l) && i + 1 < lines.length && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i + 1])) {
+      const row = r => r.trim().replace(/^\||\|$/g, "").split("|").map(c => inline(c.trim()));
+      const head = row(l); i += 2; const body = [];
+      while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) body.push(row(lines[i++]));
+      out.push(`<table><tr>${head.map(c => `<th>${c}</th>`).join("")}</tr>${body.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}</table>`);
+      continue;
+    }
+    let m;
+    if ((m = l.match(/^(#{1,4})\s+(.*)/))) { out.push(`<h${m[1].length + 1}>${inline(m[2])}</h${m[1].length + 1}>`); i++; continue; }
+    if (/^\s*([-*]|\d+\.)\s+/.test(l)) {
+      const ordered = /^\s*\d+\./.test(l), items = [];
+      while (i < lines.length && /^\s*([-*]|\d+\.)\s+/.test(lines[i])) items.push(inline(lines[i++].replace(/^\s*([-*]|\d+\.)\s+/, "")));
+      out.push(`<${ordered ? "ol" : "ul"}>${items.map(x => `<li>${x}</li>`).join("")}</${ordered ? "ol" : "ul"}>`); continue;
+    }
+    if (/^&gt;\s?/.test(l)) {
+      const buf = [];
+      while (i < lines.length && /^&gt;\s?/.test(lines[i])) buf.push(inline(lines[i++].replace(/^&gt;\s?/, "")));
+      out.push(`<blockquote>${buf.join("<br>")}</blockquote>`); continue;
+    }
+    if (!l.trim()) { i++; continue; }
+    const buf = [];
+    while (i < lines.length && lines[i].trim() && !/^(```|#{1,4}\s|\s*([-*]|\d+\.)\s|&gt;|\s*\|)/.test(lines[i])) buf.push(inline(lines[i++]));
+    if (!buf.length) buf.push(inline(lines[i++]));
+    out.push(`<p>${buf.join("<br>")}</p>`);
+  }
+  return out.join("");
+}
+
+// ── routing ───────────────────────────────────────────────────────────────────
+function go(hash) { if (location.hash !== hash) location.hash = hash; else route(); }
+window.addEventListener("hashchange", route);
+async function route() {
+  const h = decodeURIComponent(location.hash.slice(1));
+  const [, kind, a, b] = h.split("/");
+  if (kind === "s") {
+    document.body.classList.remove("mapmode");
+    if (state.view === "map") setTab("real");
+    if (!state.lists[state.view]) await showList(state.view);
+    return openSession(a, b ? +b : null);
+  }
+  document.body.classList.toggle("mapmode", kind === "map" || !kind);
+  if (kind === "map" || !kind) { setTab("map"); return showMap(a); }
+  if (kind === "search") return runSearch(a || "");
+  const view = ["real", "auto", "memory"].includes(kind) ? kind : "real";
+  await showList(view);
+  if (view === "memory") showMemory();
+}
+
+// ── lists ─────────────────────────────────────────────────────────────────────
+function setTab(view) {
+  state.view = view;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.view === view));
+}
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => { $("#q").value = ""; go("#/" + t.dataset.view); });
+
+async function showList(view) {
+  setTab(view);
+  const el = $("#list");
+  if (view === "memory") {
+    state.lists.memory = state.lists.memory || await api("/api/memory");
+    return renderMemoryList(state.lists.memory);
+  }
+  if (!state.lists[view]) { el.innerHTML = '<div class="empty"><span class="spin"></span></div>'; state.lists[view] = await api("/api/sessions?kind=" + view); }
+  view === "auto" ? renderJobs(state.lists.auto) : renderSessions(state.lists.real);
+}
+
+function sessionItem(s, compact) {
+  const summ = s.summary?.summary;
+  const tags = (s.summary?.topics || []).slice(0, 3).map(t => `<span class="chip">${esc(t)}</span>`).join("");
+  return `<button class="item${state.open === s.id ? " on" : ""}" data-id="${s.id}">
+    <div class="t">${esc(titleOf(s))}</div>
+    <div class="m">${compact ? fmtDay(s.started) + " · " + fmtTime(s.started) : `<span class="chip">${esc(s.project)}</span>${fmtTime(s.started)} · ${duration(s.started, s.ended)} · ${plural(s.n_user, "message")}`}</div>
+    ${compact ? "" : `<div class="s">${esc(summ || s.first_prompt || "")}</div>`}
+    ${!compact && tags ? `<div class="m" style="margin-top:6px">${tags}</div>` : ""}
+  </button>`;
+}
+function bindItems(el) { el.querySelectorAll(".item[data-id]").forEach(b => b.onclick = () => go("#/s/" + b.dataset.id)); }
+
+function renderSessions(rows) {
+  const el = $("#list");
+  if (!rows.length) { el.innerHTML = '<div class="empty">No conversations yet.</div>'; return; }
+  let html = "", day = "";
+  for (const s of rows) {
+    const d = fmtDay(s.started);
+    if (d !== day) { html += `<div class="group">${d}</div>`; day = d; }
+    html += sessionItem(s);
+  }
+  el.innerHTML = html; bindItems(el);
+}
+
+function renderJobs(rows) {
+  const el = $("#list"), jobs = new Map();
+  for (const s of rows) { if (!jobs.has(s.job)) jobs.set(s.job, []); jobs.get(s.job).push(s); }
+  const sorted = [...jobs.entries()].sort((a, b) => b[1][0].started.localeCompare(a[1][0].started));
+  el.innerHTML = `<div class="group">${plural(sorted.length, "kind")} of job · ${plural(rows.length, "run")}</div>` + sorted.map(([job, runs], i) => {
+    const first = runs[runs.length - 1].started, last = runs[0].started;
+    const projects = [...new Set(runs.map(r => r.project))].slice(0, 2);
+    const open = runs.some(r => r.id === state.open);
+    return `<div class="job"><button data-job="${i}">
+      <div class="t">${esc(job)}…</div>
+      <div class="m">${plural(runs.length, "run")} · ${fmtShort(first)}${fmtShort(first) !== fmtShort(last) ? " – " + fmtShort(last) : ""} · ${projects.map(esc).join(", ")}</div>
+    </button><div class="runs" ${open ? "" : "hidden"}>${runs.map(r => sessionItem(r, true)).join("")}</div></div>`;
+  }).join("");
+  el.querySelectorAll("[data-job]").forEach(b => b.onclick = () => { const r = b.nextElementSibling; r.hidden = !r.hidden; });
+  bindItems(el);
+}
+
+// ── search ────────────────────────────────────────────────────────────────────
+let searchTimer;
+$("#q").addEventListener("input", e => {
+  clearTimeout(searchTimer);
+  const q = e.target.value.trim();
+  searchTimer = setTimeout(() => q ? go("#/search/" + encodeURIComponent(q)) : go("#/" + (["memory", "map"].includes(state.view) ? "real" : state.view)), 250);
+});
+async function runSearch(q) {
+  document.body.classList.remove("mapmode");
+  if (state.view === "map") setTab("real");
+  state.query = q;
+  if ($("#q").value.trim() !== q) $("#q").value = q;
+  const el = $("#list");
+  el.innerHTML = '<div class="empty"><span class="spin"></span></div>';
+  const kind = state.view === "auto" ? "auto" : "real";
+  const [mine, other] = await Promise.all([api(`/api/search?kind=${kind}&q=${encodeURIComponent(q)}`), api(`/api/search?kind=${kind === "real" ? "auto" : "real"}&q=${encodeURIComponent(q)}`)]);
+  if (state.query !== q) return;
+  const hl = s => esc(s.replace(/\*\*|__|`/g, "")).replace(/\x01/g, "<mark>").replace(/\x02/g, "</mark>");
+  const block = (rows, label) => rows.length ? `<div class="group">${label} · ${rows.length}${rows.length === 150 ? "+" : ""}</div>` + rows.map(r => `
+    <button class="item" data-sid="${r.session_id}" data-seq="${r.seq}">
+      <div class="m">${r.role === "user" ? "You" : "Claude"} · ${fmtDay(r.started)} · ${esc(r.title || r.project)}</div>
+      <div class="s" style="-webkit-line-clamp:4">${hl(r.snip)}</div>
+    </button>`).join("") : "";
+  el.innerHTML = (block(mine, kind === "real" ? "In your conversations" : "In automated runs") + block(other, kind === "real" ? "In automated runs" : "In your conversations"))
+    || `<div class="empty">Nothing matches “${esc(q)}”.</div>`;
+  el.querySelectorAll("[data-sid]").forEach(b => b.onclick = () => {
+    el.querySelectorAll(".item.on").forEach(x => x.classList.remove("on")); b.classList.add("on");
+    openSession(b.dataset.sid, +b.dataset.seq);
+  });
+}
+
+// ── session detail ────────────────────────────────────────────────────────────
+async function openSession(id, seq) {
+  state.open = id;
+  document.querySelectorAll(".item[data-id]").forEach(b => b.classList.toggle("on", b.dataset.id === id));
+  const main = $("#main");
+  main.innerHTML = '<div class="welcome"><span class="spin"></span></div>';
+  const s = await api("/api/session/" + id);
+  if (state.open !== id) return;
+  if (s.error) { main.innerHTML = '<div class="welcome">Session not found.</div>'; return; }
+  if (s.kind !== state.view && s.kind !== "subagent" && !state.query) { setTab(s.kind); showList(s.kind); }
+  main.innerHTML = `<div class="detail">
+    ${s.parent_id ? `<div class="crumb"><button id="back">← Back to the main session</button> · subagent</div>` : ""}
+    <h1>${esc(s.agent_label || titleOf(s))}</h1>
+    <div class="meta">
+      <span>${fmtDay(s.started)}, ${fmtTime(s.started)}</span><span>${duration(s.started, s.ended)}</span>
+      <span>${esc(s.project)}${s.git_branch && s.git_branch !== "HEAD" ? " · " + esc(s.git_branch) : ""}</span>
+      <span>${plural(s.n_user, "message")} from you · ${plural(s.n_tools, "tool call")}</span>
+    </div>
+    <div id="summary"></div>
+    <div class="toolbar"><h2>Conversation</h2>
+      <label class="toggle"><input type="checkbox" id="tools" ${state.showTools ? "checked" : ""}> Show tool calls</label></div>
+    <div id="transcript"></div>
+  </div>`;
+  if (s.parent_id) $("#back").onclick = () => go("#/s/" + s.parent_id);
+  renderSummary(s);
+  renderTranscript(s);
+  $("#tools").onchange = e => { state.showTools = e.target.checked; try { localStorage.setItem("showTools", state.showTools ? "1" : "0"); } catch (x) {} renderTranscript(s); };
+  if (seq != null) {
+    const target = document.getElementById("m" + seq) || [...document.querySelectorAll("[data-seqs]")].find(g => g.dataset.seqs.split(",").includes(String(seq)));
+    if (target) { target.scrollIntoView({ block: "center" }); target.classList.add("flash"); setTimeout(() => target.classList.remove("flash"), 2500); }
+  } else main.scrollTop = 0;
+}
+
+function renderSummary(s) {
+  const el = $("#summary"), x = s.summary;
+  const list = (h, arr) => arr?.length ? `<h3>${h}</h3><ul>${arr.map(i => `<li>${esc(i)}</li>`).join("")}</ul>` : "";
+  const subs = s.subagents.length ? `<h3>Subagents · ${s.subagents.length}</h3><div class="subs">${s.subagents.map(a =>
+    `<button data-sub="${a.id}">${esc(a.agent_label || a.id)} <span class="muted">· ${plural(a.n_tools, "step")}</span></button>`).join("")}</div>` : "";
+  const running = s.job_status === "running";
+  const action = s.kind === "subagent" ? "" : `<div class="row" style="margin-top:16px">
+      <button class="btn${x ? "" : " primary"}" id="summ" ${running ? "disabled" : ""}>${running ? '<span class="spin"></span> Summarising…' : x ? "Summarise again" : "Summarise this session"}</button>
+      <span class="muted">${x ? `By ${esc(s.summary_model)}${s.summary_stale ? " · the session has continued since" : ""}` : "Uses Claude on your plan · takes about a minute"}</span>
+      ${s.job_status?.startsWith?.("error") ? `<span class="muted" style="color:var(--danger)">${esc(s.job_status)}</span>` : ""}
+    </div>`;
+  if (!x) {
+    const first = s.first_prompt ? `<h3>${s.kind === "auto" ? "Prompt" : "How it started"}</h3><p class="lede">${esc(s.first_prompt.slice(0, 600))}${s.first_prompt.length > 600 ? "…" : ""}</p>` : "";
+    el.innerHTML = (first || subs || action) ? `<div class="card">${first}${subs}${action}</div>` : "";
+  } else {
+    el.innerHTML = `<div class="card">
+      <p class="lede">${esc(x.summary)}</p>
+      ${x.topics?.length ? `<div style="margin-top:10px">${x.topics.map(t => `<span class="chip">${esc(t)}</span>`).join("")}</div>` : ""}<div style="height:6px"></div>
+      <div class="cols"><div>${list("Decisions", x.decisions)}${list("Made", x.outputs)}</div><div>${list("About you", x.about_you)}${list("Still open", x.open_threads)}</div></div>
+      ${subs}${action}</div>`;
+  }
+  el.querySelectorAll("[data-sub]").forEach(b => b.onclick = () => go("#/s/" + b.dataset.sub));
+  const btn = $("#summ");
+  if (btn) btn.onclick = async () => { await api("/api/summarise/" + s.id, { method: "POST" }); s.job_status = "running"; renderSummary(s); poll(s.id); };
+  if (running) poll(s.id);
+}
+async function poll(id) {
+  await new Promise(r => setTimeout(r, 4000));
+  if (state.open !== id) return;
+  const s = await api("/api/session/" + id);
+  if (s.job_status === "running") return poll(id);
+  if (state.open !== id) return;
+  renderSummary(s);
+  state.lists[s.kind] = null;
+  if (!state.query) showList(state.view);
+}
+
+function renderTranscript(s) {
+  const el = $("#transcript"), out = [], msgs = s.messages;
+  let i = 0;
+  while (i < msgs.length) {
+    const m = msgs[i];
+    if (m.role === "tool") {
+      const group = [];
+      while (i < msgs.length && msgs[i].role === "tool") group.push(msgs[i++]);
+      if (!state.showTools) {
+        const names = [...new Set(group.map(g => g.tool_name))].slice(0, 4).join(", ");
+        out.push(`<div class="steps" data-seqs="${group.map(g => g.seq).join(",")}"><button data-expand="${group[0].seq}">▸ ${plural(group.length, "step")} · ${esc(names)}</button><div hidden></div></div>`);
+      } else out.push(`<div class="steps" data-seqs="${group.map(g => g.seq).join(",")}">${group.map(stepHtml).join("")}</div>`);
+      continue;
+    }
+    if (m.role === "command") out.push(`<div class="cmd" id="m${m.seq}">/${esc(m.text.replace(/^\//, ""))}</div>`);
+    else if (m.role === "user") out.push(`<div class="msg user" id="m${m.seq}"><div class="who">You · ${fmtTime(m.ts)}</div><div class="body">${esc(m.text)}</div></div>`);
+    else out.push(`<div class="msg assistant" id="m${m.seq}"><div class="who">Claude</div><div class="body md">${md(m.text)}</div></div>`);
+    i++;
+  }
+  el.innerHTML = out.join("") || '<div class="empty">No messages.</div>';
+  const bySeq = new Map(msgs.map(m => [m.seq, m]));
+  el.querySelectorAll("[data-expand]").forEach(b => b.onclick = () => {
+    const box = b.nextElementSibling;
+    if (box.hidden && !box.innerHTML) box.innerHTML = b.parentElement.dataset.seqs.split(",").map(x => stepHtml(bySeq.get(+x))).join("");
+    box.hidden = !box.hidden; b.textContent = (box.hidden ? "▸ " : "▾ ") + b.textContent.slice(2); bindSteps(box, bySeq);
+  });
+  bindSteps(el, bySeq);
+}
+function stepHtml(m) {
+  return `<div class="step"><button data-step="${m.seq}"><b>${esc(m.tool_name)}</b>${esc(m.text)}</button><div hidden></div></div>`;
+}
+function bindSteps(root, bySeq) {
+  root.querySelectorAll("[data-step]:not([data-bound])").forEach(b => {
+    b.dataset.bound = 1;
+    b.onclick = () => { const box = b.nextElementSibling; if (!box.innerHTML) box.innerHTML = `<pre>${esc(bySeq.get(+b.dataset.step).detail || "")}</pre>`; box.hidden = !box.hidden; };
+  });
+}
+
+// ── memory ────────────────────────────────────────────────────────────────────
+function renderMemoryList(mems) {
+  const el = $("#list"), byType = {};
+  for (const m of mems) (byType[m.type || "other"] ||= []).push(m);
+  const order = ["user", "feedback", "project", "reference", "other"];
+  el.innerHTML = order.filter(t => byType[t]).map(t => `<div class="group">${t} · ${byType[t].length}</div>` + byType[t].map((m, j) =>
+    `<button class="item" data-mem="${esc(m.path)}"><div class="t">${esc(m.name)}</div><div class="m"><span class="chip">${esc(m.project)}</span></div><div class="s">${esc(m.description)}</div></button>`).join("")).join("");
+  el.querySelectorAll("[data-mem]").forEach(b => b.onclick = () => {
+    const card = document.getElementById("mem-" + b.dataset.mem);
+    if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+function showMemory() {
+  const mems = state.lists.memory || [];
+  state.open = null;
+  $("#main").innerHTML = `<div class="detail"><h1>Memory</h1>
+    <div class="meta"><span>${plural(mems.length, "memory")} Claude keeps about you and your projects</span></div>
+    ${mems.slice().sort((a, b) => b.modified - a.modified).map(m => `<div class="card mem" id="mem-${esc(m.path)}">
+      <span class="type"><span class="chip">${esc(m.project)}</span><span class="chip">${esc(m.type || "note")}</span></span>
+      <div style="font-weight:600;font-size:15px">${esc(m.name)}</div>
+      <div class="desc">${esc(m.description)}</div>
+      <div class="md">${md(m.body)}</div>
+      <div class="src">${esc(m.path)} · updated ${fmtDay(new Date(m.modified * 1000).toISOString())}
+        ${m.sources.length ? "<br>Written in: " + m.sources.slice(0, 4).map(x => `<button data-id="${x.session_id}">${esc(x.title || "untitled session")}</button>`).join(" · ") : ""}</div>
+    </div>`).join("")}</div>`;
+  $("#main").querySelectorAll(".src button[data-id]").forEach(b => b.onclick = () => go("#/s/" + b.dataset.id));
+  $("#main").scrollTop = 0;
+}
+
+// ── map ───────────────────────────────────────────────────────────────────────
+const THEME_COLOURS = ["#b08a55", "#6f9a78", "#8a78b5", "#c0745a", "#5a8fae", "#b5749a", "#959a52", "#4f9e9a", "#a86f45", "#7f8798", "#9e5f6e", "#6b8f4f"];
+const mapState = { data: null, layout: null, show: { session: true, memory: true, job: true, similar: true }, view: null, selected: null };
+try { Object.assign(mapState.show, JSON.parse(localStorage.getItem("mapShow") || "{}")); } catch (e) {}
+
+function seeded(seed) { return () => (seed = (seed * 16807) % 2147483647) / 2147483647; }
+function nodeRadius(n) {
+  if (n.kind === "session") return Math.min(19, 7 + 2.6 * Math.log2(1 + n.weight / 4));
+  if (n.kind === "job") return Math.min(13, 5 + 1.6 * Math.log2(1 + n.weight));
+  return 4.5;
+}
+function ageDays(iso) { return iso ? (Date.now() - new Date(iso)) / 864e5 : 999; }
+function recency(n) { const d = ageDays(n.date); return d < 21 ? 1 : d < 60 ? 0.72 : 0.42; }
+
+function layoutMap(data) {
+  const rand = seeded(7), themes = data.themes, byId = new Map(data.nodes.map(n => [n.id, n]));
+  // order themes round the circle so themes with many links sit next to each other
+  const tIndex = new Map(themes.map((t, i) => [t.id, i])), w = themes.map(() => themes.map(() => 0));
+  for (const l of [...data.links, ...data.similar]) {
+    const a = tIndex.get(byId.get(l.a)?.theme), b = tIndex.get(byId.get(l.b)?.theme);
+    if (a != null && b != null && a !== b) { w[a][b] += l.score || 1; w[b][a] += l.score || 1; }
+  }
+  const order = [0], left = new Set(themes.map((_, i) => i).slice(1));
+  while (left.size) {
+    const last = order[order.length - 1];
+    let best = [...left][0];
+    for (const c of left) if (w[last][c] > w[last][best]) best = c;
+    order.push(best); left.delete(best);
+  }
+  // give each theme room in proportion to how much is in it
+  const est = new Map(themes.map(t => {
+    const area = t.items.reduce((s, id) => { const r = nodeRadius(byId.get(id)) + (byId.get(id).kind === "session" ? 30 : 11); return s + r * r; }, 0);
+    return [t.id, Math.sqrt(area) * 1.25 + 34];
+  }));
+  const total = order.reduce((s, ti) => s + est.get(themes[ti].id) * 2, 0);
+  const R = Math.max(240, total * 1.12 / (2 * Math.PI)), anchors = new Map();
+  let acc = 0;
+  order.forEach(ti => {
+    const t = themes[ti], share = est.get(t.id) * 2 / total;
+    const ang = (acc + share / 2) * Math.PI * 2 - Math.PI / 2; acc += share;
+    const pull = t.status === "parked" ? 1.08 : t.status === "active" ? 0.94 : 1;   // active themes sit a little nearer the centre
+    anchors.set(t.id, { x: Math.cos(ang) * R * pull, y: Math.sin(ang) * R * pull });
+  });
+  const nodes = data.nodes.map(n => {
+    const a = anchors.get(n.theme);
+    return { ...n, r: nodeRadius(n), x: a.x + (rand() - .5) * 80, y: a.y + (rand() - .5) * 80, vx: 0, vy: 0 };
+  });
+  const idx = new Map(nodes.map((n, i) => [n.id, i]));
+  // similarity pulls items together inside a theme; across themes it only nudges (the lines still show it)
+  const springs = data.similar.map(l => {
+    const a = idx.get(l.a), b = idx.get(l.b);
+    if (a == null || b == null) return null;
+    const same = nodes[a].theme === nodes[b].theme;
+    return { a, b, k: same ? 0.03 + l.score * 0.05 : 0.002, len: same ? 48 : 200 };
+  }).filter(Boolean);
+  for (let tick = 0, alpha = 1; tick < 450; tick++, alpha *= 0.991) {
+    for (let i = 0; i < nodes.length; i++) {
+      const p = nodes[i], a = anchors.get(p.theme);
+      p.vx += (a.x - p.x) * 0.035 * alpha; p.vy += (a.y - p.y) * 0.035 * alpha;
+      for (let j = i + 1; j < nodes.length; j++) {
+        const q = nodes[j]; let dx = q.x - p.x, dy = q.y - p.y, d2 = dx * dx + dy * dy || 0.01;
+        const d = Math.sqrt(d2), min = p.r + q.r + (p.kind === "session" || q.kind === "session" ? 24 : 8);
+        let f = (p.theme === q.theme ? 220 : 1400) / d2;
+        if (d < min) f += (min - d) * 0.3;
+        dx /= d; dy /= d;
+        p.vx -= dx * f * alpha; p.vy -= dy * f * alpha; q.vx += dx * f * alpha; q.vy += dy * f * alpha;
+      }
+    }
+    for (const s of springs) {
+      const p = nodes[s.a], q = nodes[s.b], dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy) || 1;
+      const f = (d - s.len) * s.k * alpha;
+      p.vx += dx / d * f; p.vy += dy / d * f; q.vx -= dx / d * f; q.vy -= dy / d * f;
+    }
+    for (const p of nodes) { p.vx *= 0.6; p.vy *= 0.6; p.x += p.vx; p.y += p.vy; }
+  }
+  const halos = themes.map((t, i) => {
+    const members = nodes.filter(n => n.theme === t.id);
+    const cx = members.reduce((s, n) => s + n.x, 0) / members.length, cy = members.reduce((s, n) => s + n.y, 0) / members.length;
+    const dists = members.map(n => Math.hypot(n.x - cx, n.y - cy) + n.r).sort((a, b) => a - b);
+    const r = Math.max(46, dists[Math.floor((dists.length - 1) * 0.9)] + 22);
+    return { ...t, cx, cy, r, colour: THEME_COLOURS[i % THEME_COLOURS.length] };
+  });
+  return { nodes, idx, halos, colour: new Map(halos.map(h => [h.id, h.colour])) };
+}
+
+// memory notes are often named like file slugs: "tone-of-voice-rules" → "Tone of voice rules"
+function tidyMap(m) {
+  for (const n of m.nodes) if (n.kind === "memory" && !/\s/.test(n.title)) {
+    const t = n.title.replace(/^(project|feedback|user|reference)[-_]/, "").replace(/[-_]+/g, " ");
+    n.title = t.charAt(0).toUpperCase() + t.slice(1);
+  }
+  return m;
+}
+
+async function showMap(focus) {
+  const main = $("#main");
+  if (!mapState.data) {
+    main.innerHTML = '<div class="welcome"><span class="spin"></span></div>';
+    const res = await api("/api/map");
+    if (!res.map) {
+      main.innerHTML = `<div class="welcome">No map yet.<br><br><button class="btn primary" id="build">Build my map</button>
+        <p class="muted" style="font-family:var(--sans)">One Claude call on your plan, about a minute.</p></div>`;
+      $("#build").onclick = rebuildMap;
+      if (res.status === "running") pollMap();
+      return;
+    }
+    mapState.data = tidyMap(res.map);
+    mapState.layout = layoutMap(mapState.data);
+  }
+  $("#n-map").textContent = mapState.data.themes.length;
+  renderMap();
+  if (focus) selectNode(focus);
+}
+
+async function rebuildMap() {
+  await api("/api/map/rebuild", { method: "POST" });
+  const btn = $("#build") || $("#rebuild");
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Building…'; }
+  pollMap();
+}
+async function pollMap() {
+  await new Promise(r => setTimeout(r, 4000));
+  const res = await api("/api/map");
+  if (res.status === "running") return pollMap();
+  if (res.status?.startsWith?.("error")) { const b = $("#build") || $("#rebuild"); if (b) b.outerHTML = `<span style="color:var(--danger)">${esc(res.status)}</span>`; return; }
+  mapState.data = tidyMap(res.map); mapState.layout = layoutMap(mapState.data); mapState.view = null;
+  $("#n-map").textContent = res.map.themes.length;
+  if (state.view === "map") renderMap();
+}
+
+function renderMap() {
+  const { data, layout } = mapState, show = mapState.show, main = $("#main");
+  const byId = new Map(layout.nodes.map(n => [n.id, n]));
+  const visible = n => show[n.kind];
+  const built = new Date(data.built);
+  main.innerHTML = `<div class="mapwrap">
+    <svg id="mapsvg"><g id="vp"></g></svg>
+    <div class="maphead">
+      <div class="centre">${esc(data.centre)}</div>
+      <div class="controls">
+        <label><input type="checkbox" data-show="session" ${show.session ? "checked" : ""}> Conversations</label>
+        <label><input type="checkbox" data-show="memory" ${show.memory ? "checked" : ""}> Memories</label>
+        <label><input type="checkbox" data-show="job" ${show.job ? "checked" : ""}> Automated jobs</label>
+        <label><input type="checkbox" data-show="similar" ${show.similar ? "checked" : ""}> Similarity lines</label>
+        <button class="btn" id="rebuild" style="margin-top:4px">Rebuild map</button>
+        <span class="muted" style="font-size:11.5px">Built ${fmtShort(built.toISOString())}, ${fmtTime(built.toISOString())}</span>
+      </div>
+    </div>
+    <div class="legend">
+      <span><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="var(--ink-3)"/></svg>conversation</span>
+      <span><svg width="12" height="12"><circle cx="6" cy="6" r="4" fill="none" stroke="var(--ink-3)" stroke-width="2"/></svg>memory</span>
+      <span><svg width="12" height="12"><rect x="1.5" y="1.5" width="9" height="9" rx="2" fill="var(--ink-3)"/></svg>automated job</span>
+      <span><svg width="22" height="10"><path d="M1 5 Q11 -2 21 5" fill="none" stroke="var(--gold)" stroke-width="1.6" stroke-dasharray="4 3"/></svg>connection Claude noticed</span>
+      <span>brighter = more recent</span>
+    </div>
+    <div class="tip" hidden></div>
+    <aside class="mappanel" hidden></aside>
+  </div>`;
+  const vp = $("#vp"), parts = [];
+  for (const h of layout.halos) {
+    if (!layout.nodes.some(n => n.theme === h.id && visible(n))) continue;
+    parts.push(`<circle cx="${h.cx}" cy="${h.cy}" r="${h.r}" fill="${h.colour}" fill-opacity="${h.status === "parked" ? 0.04 : 0.09}" stroke="${h.colour}" stroke-opacity=".25" ${h.status === "parked" ? 'stroke-dasharray="5 5"' : ""} data-theme="${h.id}" class="halo"/>`);
+  }
+  if (show.similar) for (const l of data.similar) {
+    const a = byId.get(l.a), b = byId.get(l.b);
+    if (a && b && visible(a) && visible(b)) parts.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="var(--ink-3)" stroke-opacity="${a.theme === b.theme ? 0.14 + l.score * 0.5 : 0.045}" stroke-width="${0.6 + l.score * 2}" data-a="${a.id}" data-b="${b.id}" class="edge"/>`);
+  }
+  for (const l of data.links) {
+    const a = byId.get(l.a), b = byId.get(l.b);
+    if (!a || !b || !visible(a) || !visible(b)) continue;
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2, k = 0.18;
+    parts.push(`<path d="M${a.x},${a.y} Q${mx - (b.y - a.y) * k},${my + (b.x - a.x) * k} ${b.x},${b.y}" fill="none" stroke="var(--gold)" stroke-width="1.5" stroke-dasharray="5 4" stroke-opacity=".8" data-a="${a.id}" data-b="${b.id}" class="edge xlink"/>`);
+  }
+  for (const n of layout.nodes) {
+    if (!visible(n)) continue;
+    const c = layout.colour.get(n.theme), o = recency(n);
+    const shape = n.kind === "memory"
+      ? `<circle r="${n.r}" fill="var(--bg)" stroke="${c}" stroke-width="2"/>`
+      : n.kind === "job"
+        ? `<rect x="${-n.r}" y="${-n.r}" width="${n.r * 2}" height="${n.r * 2}" rx="3" fill="${c}"/>`
+        : `<circle r="${n.r}" fill="${c}" stroke="var(--bg)" stroke-width="2"/>`;
+    const label = n.kind === "session" ? `<text x="${n.r + 5}" y="4">${esc(n.title.length > 38 ? n.title.slice(0, 37) + "…" : n.title)}</text>` : "";
+    parts.push(`<g class="mapnode" data-id="${n.id}" transform="translate(${n.x},${n.y})" opacity="${o}">${shape}${label}</g>`);
+  }
+  for (const h of layout.halos) {
+    if (!layout.nodes.some(n => n.theme === h.id && visible(n))) continue;
+    const size = Math.max(15, Math.min(22, 12 + h.items.length / 3));
+    parts.push(`<text class="themelabel" data-theme="${h.id}" x="${h.cx}" y="${h.cy - h.r - 10}" text-anchor="middle" font-size="${size}" fill="${h.colour}">${esc(h.name)}<tspan class="st" x="${h.cx}" dy="${-size - 2}" fill="var(--ink-3)">${h.status.toUpperCase()}</tspan></text>`);
+  }
+  vp.innerHTML = parts.join("");
+
+  // fit to screen, then pan / zoom
+  const svg = $("#mapsvg"), box = svg.getBoundingClientRect();
+  if (!mapState.view) {
+    const xs = layout.halos.flatMap(h => [h.cx - h.r, h.cx + h.r]), ys = layout.halos.flatMap(h => [h.cy - h.r - 50, h.cy + h.r]);
+    const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+    const s = Math.min(box.width / (maxX - minX + 80), (box.height - 130) / (maxY - minY + 60), 1.6);
+    mapState.view = { s, x: box.width / 2 - (minX + maxX) / 2 * s, y: 70 + (box.height - 70) / 2 - (minY + maxY) / 2 * s };
+  }
+  const apply = () => vp.setAttribute("transform", `translate(${mapState.view.x},${mapState.view.y}) scale(${mapState.view.s})`);
+  apply();
+  svg.addEventListener("wheel", e => {
+    e.preventDefault();
+    const v = mapState.view, f = Math.exp(-e.deltaY * 0.0015), ns = Math.min(5, Math.max(0.2, v.s * f));
+    const r = svg.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+    v.x = px - (px - v.x) * ns / v.s; v.y = py - (py - v.y) * ns / v.s; v.s = ns; apply();
+  }, { passive: false });
+  let drag = null;
+  svg.addEventListener("pointerdown", e => { drag = { x: e.clientX, y: e.clientY, vx: mapState.view.x, vy: mapState.view.y, moved: false, target: e.target }; svg.setPointerCapture(e.pointerId); });
+  svg.addEventListener("pointermove", e => {
+    if (drag) {
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (Math.abs(dx) + Math.abs(dy) > 3) { drag.moved = true; svg.classList.add("drag"); }
+      mapState.view.x = drag.vx + dx; mapState.view.y = drag.vy + dy; apply();
+    }
+    const g = e.target.closest?.(".mapnode"), tip = $(".tip");
+    if (g && !drag?.moved) {
+      const n = byId.get(g.dataset.id), r = $(".mapwrap").getBoundingClientRect();
+      tip.innerHTML = `<b>${esc(n.title)}</b><div class="muted">${{ session: "Conversation", memory: "Memory", job: "Automated job" }[n.kind]} · ${fmtShort(n.date)}</div>`;
+      tip.style.left = (e.clientX - r.left + 14) + "px"; tip.style.top = (e.clientY - r.top + 14) + "px"; tip.hidden = false;
+    } else tip.hidden = true;
+  });
+  svg.addEventListener("pointerup", e => {
+    svg.classList.remove("drag");
+    const moved = drag?.moved, target = drag?.target || e.target; drag = null;
+    if (moved) return;
+    const g = target.closest?.(".mapnode"), t = target.closest?.("[data-theme]");
+    if (g) selectNode(g.dataset.id);
+    else if (t) selectTheme(t.dataset.theme);
+    else clearSelection();
+  });
+  main.querySelectorAll("[data-show]").forEach(cb => cb.onchange = () => {
+    mapState.show[cb.dataset.show] = cb.checked;
+    try { localStorage.setItem("mapShow", JSON.stringify(mapState.show)); } catch (e) {}
+    renderMap();
+  });
+  $("#rebuild").onclick = rebuildMap;
+  if (mapState.selected) (mapState.selected.startsWith("t") && !byId.has(mapState.selected) ? selectTheme : selectNode)(mapState.selected);
+}
+
+function highlight(ids) {
+  document.querySelectorAll(".mapnode").forEach(g => g.classList.toggle("dim", !!ids && !ids.has(g.dataset.id)));
+  document.querySelectorAll(".edge").forEach(e => e.classList.toggle("dim", !!ids && !(ids.has(e.dataset.a) && ids.has(e.dataset.b))));
+}
+function clearSelection() { mapState.selected = null; highlight(null); const p = $(".mappanel"); if (p) p.hidden = true; }
+
+function selectNode(id) {
+  const { data, layout } = mapState, byId = new Map(layout.nodes.map(n => [n.id, n])), n = byId.get(id);
+  if (!n) return;
+  mapState.selected = id;
+  const theme = layout.halos.find(h => h.id === n.theme);
+  const xl = data.links.filter(l => l.a === id || l.b === id).map(l => ({ other: byId.get(l.a === id ? l.b : l.a), why: l.why }));
+  const sim = data.similar.filter(l => l.a === id || l.b === id).sort((a, b) => b.score - a.score).map(l => ({ other: byId.get(l.a === id ? l.b : l.a) }));
+  highlight(new Set([id, ...xl.map(x => x.other.id), ...sim.map(x => x.other.id)]));
+  const item = x => `<button class="lk" data-node="${x.other.id}"><span class="dot" style="background:${layout.colour.get(x.other.theme)}"></span>${esc(x.other.title)}${x.why ? `<span class="why">${esc(x.why)}</span>` : ""}</button>`;
+  const kindLabel = { session: "Conversation", memory: "Memory", job: "Automated job" }[n.kind];
+  const open = n.kind === "session" ? `<button class="btn primary" data-open="#/s/${n.ref}">Open conversation</button>`
+    : n.kind === "job" ? `<button class="btn" data-open="#/s/${n.ref}">Open the latest run</button>` : "";
+  const p = $(".mappanel");
+  p.innerHTML = `<button class="x" aria-label="Close">×</button>
+    <span class="chip">${kindLabel}</span><button class="chip" style="border:0;cursor:pointer" data-themebtn="${theme.id}"><span class="dot" style="background:${theme.colour}"></span>${esc(theme.name)}</button>
+    <h2>${esc(n.title)}</h2>
+    <div class="muted">${n.kind === "job" ? `${plural(n.runs, "run")} · ${fmtShort(n.first)} – ${fmtShort(n.date)}` : (n.kind === "memory" ? "Updated " : "Last active ") + fmtDay(n.date)} · ${esc(n.project)}</div>
+    <p style="margin:12px 0">${esc(n.gist)}</p>
+    ${n.topics?.length ? `<div>${n.topics.map(t => `<span class="chip">${esc(t)}</span>`).join("")}</div>` : ""}
+    ${n.kind === "memory" && n.body ? `<details style="margin-top:10px"><summary class="muted" style="cursor:pointer">Full note</summary><div class="md" style="margin-top:8px">${md(n.body)}</div></details>` : ""}
+    <div class="row" style="margin-top:14px">${open}</div>
+    ${xl.length ? `<h3>Connections Claude noticed</h3>${xl.map(item).join("")}` : ""}
+    ${sim.length ? `<h3>Similar</h3>${sim.map(item).join("")}` : ""}`;
+  p.hidden = false;
+  bindPanel(p);
+}
+
+function selectTheme(tid) {
+  const { data, layout } = mapState, h = layout.halos.find(x => x.id === tid);
+  if (!h) return;
+  mapState.selected = tid;
+  const members = layout.nodes.filter(n => n.theme === tid).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const ids = new Set(members.map(n => n.id));
+  highlight(ids);
+  const outward = data.links.filter(l => ids.has(l.a) !== ids.has(l.b));
+  const byId = new Map(layout.nodes.map(n => [n.id, n]));
+  const groups = [["session", "Conversations"], ["job", "Automated jobs"], ["memory", "Memories"]];
+  const p = $(".mappanel");
+  p.innerHTML = `<button class="x" aria-label="Close">×</button>
+    <span class="chip"><span class="dot" style="background:${h.colour}"></span>Theme · ${esc(h.status)}</span>
+    <h2>${esc(h.name)}</h2><p style="margin:8px 0">${esc(h.blurb)}</p>
+    ${groups.map(([k, label]) => { const xs = members.filter(n => n.kind === k); return xs.length ? `<h3>${label} · ${xs.length}</h3>` +
+      xs.map(n => `<button class="lk" data-node="${n.id}">${esc(n.title)}<span class="why">${fmtShort(n.date)}</span></button>`).join("") : ""; }).join("")}
+    ${outward.length ? `<h3>Reaches into other themes</h3>` + outward.map(l => { const o = byId.get(ids.has(l.a) ? l.b : l.a);
+      return `<button class="lk" data-node="${o.id}"><span class="dot" style="background:${layout.colour.get(o.theme)}"></span>${esc(o.title)}<span class="why">${esc(l.why)}</span></button>`; }).join("") : ""}`;
+  p.hidden = false;
+  bindPanel(p);
+}
+
+function bindPanel(p) {
+  p.querySelector(".x").onclick = clearSelection;
+  p.querySelectorAll("[data-node]").forEach(b => b.onclick = () => selectNode(b.dataset.node));
+  p.querySelectorAll("[data-themebtn]").forEach(b => b.onclick = () => selectTheme(b.dataset.themebtn));
+  p.querySelectorAll("[data-open]").forEach(b => b.onclick = () => go(b.dataset.open));
+}
+
+// ── update button ───────────────────────────────────────────────────────────
+const BUSY = ["indexing", "summarising", "map"];
+$("#update").onclick = async () => { showUpdate(await api("/api/update", { method: "POST" })); pollUpdate(); };
+function showUpdate(u) {
+  const busy = BUSY.includes(u.stage), btn = $("#update");
+  btn.disabled = busy;
+  btn.innerHTML = busy ? '<span class="spin"></span> Updating…' : "↻ Update";
+  $("#updstatus").innerHTML = u.stage === "idle" ? "" : `<span style="${u.stage === "error" ? "color:var(--danger)" : ""}">${esc(u.detail || "")}</span>`;
+}
+async function pollUpdate() {
+  await new Promise(r => setTimeout(r, 2000));
+  const u = await api("/api/update");
+  showUpdate(u);
+  if (BUSY.includes(u.stage)) return pollUpdate();
+  if (u.stage === "done") {   // reload everything the update may have changed
+    state.lists = {}; mapState.data = null; mapState.view = null;
+    await loadStats(); route();
+  }
+}
+async function loadStats() {
+  const st = await api("/api/stats");
+  $("#n-real").textContent = st.real || 0;
+  $("#n-auto").textContent = st.auto || 0;
+  $("#n-memory").textContent = st.memories || 0;
+  $("#navnote").textContent = `${st.summarised || 0} of ${st.real || 0} conversations summarised`;
+}
+
+// ── start ─────────────────────────────────────────────────────────────────────
+(async () => {
+  await loadStats();
+  route();
+  const u = await api("/api/update");
+  showUpdate(u);
+  if (BUSY.includes(u.stage)) pollUpdate();
+})();
+</script>
+</body>
+</html>

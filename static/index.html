@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Second Brain</title>
 <link rel="stylesheet" href="/static/style.css">
+<script>try { document.documentElement.dataset.ground = new URLSearchParams(location.search).get("ground") || localStorage.getItem("ground") || "ink"; } catch (e) {}</script>
 </head>
 <body>
 <div class="app">
@@ -20,6 +21,11 @@
       <button class="btn yellow" id="update">↻ Update</button>
       <div id="updstatus" style="margin-top:8px"></div>
       <div id="navnote" style="margin-top:6px"></div>
+      <div class="grounds" title="Background colour"><span>Background</span>
+        <button data-ground="ink" style="background:#1c1c1f" aria-label="Charcoal"></button>
+        <button data-ground="navy" style="background:#1a2242" aria-label="Navy"></button>
+        <button data-ground="plum" style="background:#2a1c31" aria-label="Plum"></button>
+        <button data-ground="paper" style="background:#ece6d8" aria-label="Paper"></button></div>
     </div>
   </nav>
   <main>

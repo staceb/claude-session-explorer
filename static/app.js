@@ -356,7 +356,7 @@ async function viewAgents() {
   main.innerHTML = `<div class="grid">
     <div class="tile t-orange c3"><h3>Agent runs</h3><div class="big">${a.runs.length}</div><div class="note">${fmtTok(tok)} tokens across ${plural(a.parents.length, "session")}</div></div>
     <div class="tile t-yellow c3"><h3>Running now</h3><div class="big">${a.running.length}</div><div class="note">${a.running.length ? a.running.map(r => esc(r.description)).join(", ") : "No agent is working right now"}</div></div>
-    <div class="tile t-mint c3"><h3>Your agents</h3><div class="big">${defs.length}</div><div class="note">${[...new Set(defs.map(d => d.name))].map(esc).join(", ") || "none defined"}</div></div>
+    <div class="tile t-mint c3"><h3>Your agents</h3><div class="big">${new Set(defs.map(d => d.name)).size}</div><div class="note">${[...new Set(defs.map(d => d.name))].map(esc).join(", ") || "none defined"}</div></div>
     <div class="tile t-pink c3"><h3>Who launched them</h3><div style="display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:14px;margin-top:6px">
       ${Object.keys(TRIGGER).filter(k => t[k]).map(k => `<b style="font-size:20px;font-variant-numeric:tabular-nums">${t[k]}</b><span style="align-self:center">${TRIGGER[k]}</span>`).join("")}</div></div>
     <div class="tile c12"><div class="section-head"><div><h2>Every agent, and where it came from</h2>
@@ -651,6 +651,15 @@ async function loadCounts() {
   $("#n-memory").textContent = st.memories || 0;
   $("#navnote").textContent = `${st.summarised || 0} of ${st.real || 0} conversations summarised`;
 }
+
+// ── background picker ─────────────────────────────────────────────────────────
+function setGround(g) {
+  document.documentElement.dataset.ground = g;
+  try { localStorage.setItem("ground", g); } catch (e) {}
+  $$(".grounds button").forEach(b => b.classList.toggle("on", b.dataset.ground === g));
+}
+$$(".grounds button").forEach(b => b.onclick = () => setGround(b.dataset.ground));
+setGround(document.documentElement.dataset.ground || "ink");
 
 // ── start ─────────────────────────────────────────────────────────────────────
 (async () => {
